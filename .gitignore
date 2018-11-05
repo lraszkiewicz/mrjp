@@ -1,5 +1,6 @@
 antlr_generated/
 antlr-4.7.1-complete.jar
+work/
 .idea/
 
 # Byte-compiled / optimized / DLL files

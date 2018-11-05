@@ -1,0 +1,5 @@
+#!/bin/bash
+
+DIRNAME="$(dirname $0)"
+PWD="$(pwd)"
+python3 "$PWD/$DIRNAME/src/main.py" "$1" llvm "$PWD"
