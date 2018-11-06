@@ -21,6 +21,7 @@ JVM_TEMPLATE = '''.source {class_name}.j
 
 JVM_PRINT_INT = [
     'getstatic java/lang/System/out Ljava/io/PrintStream;',
+    'swap',
     'invokevirtual java/io/PrintStream/println(I)V'
 ]
 
@@ -28,8 +29,15 @@ JVM_PRINT_INT = [
 def get_jvm_instr(instr: str, arg: int) -> str:
     if instr in ['iload', 'istore'] and 0 <= arg <= 3:
         return f'{instr}_{arg}'
-    if instr == 'ldc' and 0 <= arg <= 5:
-        return f'iconst_{arg}'
+    if instr == 'ldc':
+        if arg == -1:
+            return 'iconst_m1'
+        if 0 <= arg <= 5:
+            return f'iconst_{arg}'
+        if -128 <= arg <= 127:
+            return f'bipush {arg}'
+        if -32768 <= arg <= 32767:
+            return f'sipush {arg}'
     return f'{instr} {arg}'
 
 
@@ -84,8 +92,8 @@ class JVMCompiler:
     def visit_stmt_exp(self, ctx: InstantParser.StmtExpContext):
         visit_result = self.visit_exp(ctx.exp())
         return {
-            'code': [JVM_PRINT_INT[0]] + visit_result['code'] + [JVM_PRINT_INT[1]],
-            'stack_limit': visit_result['stack_limit'] + 1
+            'code': visit_result['code'] + JVM_PRINT_INT,
+            'stack_limit': max(2, visit_result['stack_limit'])
         }
 
     def visit_exp(self, ctx: InstantParser.ExpContext):

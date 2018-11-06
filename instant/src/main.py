@@ -11,9 +11,9 @@ from LLVMCompiler import LLVMCompiler
 
 
 def main(argv):
-    if len(argv) != 4:
+    if len(argv) != 5:
         raise AttributeError('invalid number of arguments to compiler')
-    input_file, target_vm, pwd = argv[1:]
+    input_file, target_vm, pwd, dirname = argv[1:]
     if not input_file.endswith('.ins'):
         raise AttributeError('input_file must have `ins` extension')
 
@@ -48,7 +48,7 @@ def main(argv):
         with open(j_file_path, 'w') as f:
             f.write(code)
             print(f'Saved {j_file_path}')
-        jasmin_path = os.path.join(pwd, 'lib', 'jasmin.jar')
+        jasmin_path = os.path.join(dirname, 'lib', 'jasmin.jar')
         os.system(f'java -jar {jasmin_path} -d {out_path} {j_file_path}')
 
 

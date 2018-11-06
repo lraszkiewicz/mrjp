@@ -2,4 +2,4 @@
 
 DIRNAME="$(dirname $0)"
 PWD="$(pwd)"
-python3 "$PWD/$DIRNAME/src/main.py" "$1" llvm "$PWD"
+python3 "$PWD/$DIRNAME/src/main.py" "$1" llvm "$PWD" "$DIRNAME"

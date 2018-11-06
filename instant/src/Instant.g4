@@ -2,7 +2,7 @@ grammar Instant;
 
 
 prog
-    : stmt (STMTSEP+ stmt)* STMTSEP*;
+    : (stmt ';')* stmt EOF;
 
 stmt
     : IDENT '=' exp  # StmtAss
@@ -24,5 +24,4 @@ INTEGER: [0-9]+;
 
 MULDIVOP: [*/];
 
-STMTSEP: [;\r\n]+;
-WS:      [ \t]+ -> skip;
+WS:      [ \t\r\n]+ -> skip;
