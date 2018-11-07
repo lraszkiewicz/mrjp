@@ -21,8 +21,12 @@ za pomocą `./make_venv.sh` i później aktywować środowisko
 (`source py3_venv/bin/activate`) lub uruchomić `source make_venv.sh`,
 co utworzy i od razu aktywuje środowisko
 (również pobierając około 110 kB danych).
+Skrypt wymaga modułu `venv` do Pythona, na studensie jest zainstalowany,
+w Ubuntu można zainstalować używając `sudo apt install python3-venv`.
 
 Uruchomienie `make` generuje parser gramatyki za pomocą ANTLR.
+Przy pierwszych uruchomieniu zostanie pobrany plik `antlr-4.7.1-complete.jar`,
+który zajmuje około 2,2 MB.
 
 
 # Używane bibliteki
