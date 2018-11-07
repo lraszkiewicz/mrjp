@@ -41,5 +41,6 @@ który zajmuje około 2,2 MB.
 * `src/Instant.g4` - gramatyka Instant w formacie ANTLR
 * `src/antlr_generated/*` - parser wygenerowany przez ANTLR
 * `lib/antlr-4.7.1-complete.jar` - biblioteka ANTLR generująca parser
+  (pobierana przez `make`)
 * `lib/jasmin.jar` - Jasmin używany do kompilacji plików `.j` do `.class`
 * `insc_jvm`, `insv_llvm` - skrypty uruchamiające kompilator
