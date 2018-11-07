@@ -1,7 +1,13 @@
 # Uruchamianie
 
+W skrócie:
+* wymagany Python >= 3.6.0
+* `source make_venv.sh`
+* `make`
+* `./insc_jvm file.ins` lub `./insc_llvm file.ins`
+
 Kompilator jest napisany w Pythonie 3 i był testowany z wersjami:
-3.7.0 (dostępna na students), 3.6.2, oraz 3.6.1. Powinien działać z dowolnym
+3.7.0 (dostępna na students) oraz 3.6.1. Powinien działać z dowolnym
 Pythonem w wersji >= 3.6.0, na pewno nie zadziała z wersjami < 3.6.
 
 Do uruchomienia kompilatora niezbędne jest zainstalowanie używanych bibliotek,
@@ -9,13 +15,14 @@ co można zrobić za pomocą `pip3 install -r requirements.txt`
 (powinno pobrać tylko około 110 kB danych).
 
 W przypadku uruchamiania kompilatora w środowisku bez uprawnień do instalacji
-bibliotek, dostarczony jest skrypt `make_venv.sh` tworzący środowisko wirtualne
-i instalujący w nim zależności. Można go uruchomić za pomocą `./make_venv.sh`
-i później aktywować środowisko (`source py3_venv/bin/activate`) lub uruchomić
-`source make_venv.sh`, co utworzy i od razu aktywuje środowisko.
+bibliotek (np. students), dostarczony jest skrypt `make_venv.sh` tworzący
+środowisko wirtualne i instalujący w nim zależności. Można go uruchomić
+za pomocą `./make_venv.sh` i później aktywować środowisko
+(`source py3_venv/bin/activate`) lub uruchomić `source make_venv.sh`,
+co utworzy i od razu aktywuje środowisko
+(również pobierając około 110 kB danych).
 
-Używając `make` można wygenerować parser Instant za pomocą ANTLR, jednak
-nie jest to konieczne, bo parser jest dołączony w paczce.
+Uruchomienie `make` generuje parser gramatyki za pomocą ANTLR.
 
 
 # Używane bibliteki
