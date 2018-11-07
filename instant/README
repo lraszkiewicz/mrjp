@@ -1,0 +1,34 @@
+# Uruchamianie
+
+Kompilator jest napisany w Pythonie 3 i był testowany z wersjami:
+3.7.0 (dostępna na students), 3.6.2, oraz 3.6.1. Powinien działać z dowolnym
+Pythonem w wersji >= 3.6.0, na pewno nie zadziała z wersjami < 3.6.
+
+Do uruchomienia kompilatora niezbędne jest zainstalowanie używanych bibliotek,
+co można zrobić za pomocą `pip3 install -r requirements.txt`
+(powinno pobrać tylko około 110 kB danych).
+
+W przypadku uruchamiania kompilatora w środowisku bez uprawnień do instalacji
+bibliotek, dostarczony jest skrypt `make_venv.sh` tworzący środowisko wirtualne
+i instalujący w nim zależności. Można go uruchomić za pomocą `./make_venv.sh`
+i później aktywować środowisko (`source py3_venv/bin/activate`) lub uruchomić
+`source make_venv.sh`, co utworzy i od razu aktywuje środowisko.
+
+Używając `make` można wygenerować parser Instant za pomocą ANTLR, jednak
+nie jest to konieczne, bo parser jest dołączony w paczce.
+
+
+# Używane bibliteki
+
+* ANTLR4 (http://www.antlr.org/) - używany zamiast BNFC do generowania
+  parsera języka Instant.
+
+
+# Struktura projektu
+
+* `src/main.py`, `src/JVMCompiler.py`, `src/LLVMCompiler.py` - pliki źródłowe
+* `src/Instant.g4` - gramatyka Instant w formacie ANTLR
+* `src/antlr_generated/*` - parser wygenerowany przez ANTLR
+* `lib/antlr-4.7.1-complete.jar` - biblioteka ANTLR generująca parser
+* `lib/jasmin.jar` - Jasmin używany do kompilacji plików `.j` do `.class`
+* `insc_jvm`, `insv_llvm` - skrypty uruchamiające kompilator

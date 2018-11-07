@@ -2,4 +2,4 @@
 
 python3 -m venv ./py3_venv && \
 source py3_venv/bin/activate && \
-pip3 install antlr4-python3-runtime
+pip3 install -r requirements.txt
