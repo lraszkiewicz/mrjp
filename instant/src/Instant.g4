@@ -2,7 +2,7 @@ grammar Instant;
 
 
 prog
-    : (stmt ';')* stmt EOF;
+    : (stmt ';')* stmt ';'? EOF;
 
 stmt
     : IDENT '=' exp  # StmtAss

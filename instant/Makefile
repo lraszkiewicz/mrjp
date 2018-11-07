@@ -8,6 +8,6 @@ src/antlr_generated/InstantLexer.py src/antlr_generated/InstantParser.py: src/In
 	java -jar ../lib/antlr-4.7.1-complete.jar Instant.g4 -no-listener -Dlanguage=Python3 -o antlr_generated
 
 clean:
-	rm -f src/antlr_generated/*
+	rm -rf src/antlr_generated/*
 
 .PHONY: grammar clean

@@ -91,8 +91,12 @@ class JVMCompiler:
 
     def visit_stmt_exp(self, ctx: InstantParser.StmtExpContext):
         visit_result = self.visit_exp(ctx.exp())
+        if visit_result['stack_limit'] <= 1:
+            code = [JVM_PRINT_INT[0]] + visit_result['code'] + [JVM_PRINT_INT[2]]
+        else:
+            code = visit_result['code'] + JVM_PRINT_INT
         return {
-            'code': visit_result['code'] + JVM_PRINT_INT,
+            'code': code,
             'stack_limit': max(2, visit_result['stack_limit'])
         }
 
