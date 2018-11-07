@@ -1,2 +1,0 @@
-for test in task_statement/examples/*.ins; do ./insc_llvm $test; ./insc_jvm $test; done
-for i in {1..6}; do echo test0$i; echo llvm; lli test0$i.bc; echo jvm; java test0$i; echo out; cat test0$i.output; done

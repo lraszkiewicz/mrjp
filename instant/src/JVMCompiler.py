@@ -44,8 +44,8 @@ def get_jvm_instr(instr: str, arg: int) -> str:
 class JVMCompiler:
 
     def __init__(self, class_name: str):
-        self.var_env = {}
-        self.locals = 1
+        self.var_env = {}  # ident: jvm_var_index
+        self.locals = 1  # first local is reserved by JVM
         self.class_name = class_name
 
     def get_new_local(self) -> int:
@@ -100,6 +100,12 @@ class JVMCompiler:
             'stack_limit': max(2, visit_result['stack_limit'])
         }
 
+    # Visiting each expression returns a dict with two key-value pairs:
+    # 'code', a list of JVM instructions,
+    # and 'stack_limit', which is the maximum number of values on stack
+    # during the execution of that expression.
+    # The JVM code should always leave one value on stack,
+    # the result of the expression.
     def visit_exp(self, ctx: InstantParser.ExpContext):
         if isinstance(ctx, (InstantParser.ExpMulDivContext,
                             InstantParser.ExpSubContext,

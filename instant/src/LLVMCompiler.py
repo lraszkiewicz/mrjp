@@ -5,6 +5,7 @@ from antlr_generated.InstantParser import InstantParser
 
 PRINT_TREE = False
 
+# copied from /home/students/inf/PUBLIC/MRJP/Llvm/runtime.ll
 LLVM_PRINT_INT = '''@dnl = internal constant [4 x i8] c"%d\\0A\\00"
 
 declare i32 @printf(i8*, ...)
@@ -80,7 +81,8 @@ class LLVMCompiler:
         self.main_code.append(f'call void @printInt(i32 {value})')
         self.print_used = True
 
-    # Each function that visits an expression returns either '%reg' when its result is in a register,
+    # Each function that visits an expression returns
+    # either '%reg' when its result is stored in a register,
     # or a number if it's a constant (only for ExpLit).
     @tree_printer
     def visit_exp(self, ctx: InstantParser.ExpContext) -> str:
