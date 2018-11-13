@@ -1,5 +1,12 @@
 #!/bin/bash
 
-DIRNAME="$(dirname $0)"
-PWD="$(pwd)"
-python3 "$PWD/$DIRNAME/src/main.py" "$1" jvm "$PWD" "$DIRNAME"
+# https://stackoverflow.com/questions/3915040/bash-fish-command-to-print-absolute-path-to-a-file
+get_abs_filename() {
+    echo "$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
+}
+
+SCRIPTPATH="$(get_abs_filename "$0")"
+PROJECTDIR="$(dirname "${SCRIPTPATH}")"
+ARGPATH="$(get_abs_filename "$1")"
+
+python3 "${PROJECTDIR}/src/main.py" "${ARGPATH}" jvm "${PROJECTDIR}"

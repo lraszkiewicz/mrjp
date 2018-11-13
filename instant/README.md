@@ -1,3 +1,15 @@
+# Aktualizacja
+
+Za oryginalną wersję kompilatora, umieszczoną na Moodle 7 listopada o 14:24,
+otrzymałem ocenę 0/6 z komentarzem "Nie działa, proszę o osobistą prezentację".
+Skrypt uruchamiający kompilator w tamtej wersji zawierał błąd niepozwalający
+na uruchomienie go ścieżką bezwzględną (działało `./insc_jvm` lub `../insc_jvm`
+itp., ale nie `/home/staff/iinf/ben/var/Mrj/2018/Instant/Raszkiewicz/insc_jvm`).
+
+Ta paczka zawiera poprawki w skryptach naprawiające powyższy błąd, bez zmian
+we właściwym kompilatorze (tj. zmieniły się tylko pliki `insc_jvm`, `insv_llvm`,
+`main.py`).
+
 # Uruchamianie
 
 W skrócie:
