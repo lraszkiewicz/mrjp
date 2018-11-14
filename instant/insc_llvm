@@ -9,4 +9,4 @@ SCRIPTPATH="$(get_abs_filename "$0")"
 PROJECTDIR="$(dirname "${SCRIPTPATH}")"
 ARGPATH="$(get_abs_filename "$1")"
 
-python3 "${PROJECTDIR}/src/main.py" "${ARGPATH}" llvm "${PROJECTDIR}"
+"${PROJECTDIR}/py3_venv/bin/python3" "${PROJECTDIR}/src/main.py" "${ARGPATH}" llvm "${PROJECTDIR}"
