@@ -53,25 +53,40 @@ lattype
     ;
 
 exp
-    : <assoc=right> exp '||' exp        # ExpOr
-    | <assoc=right> exp '&&' exp        # ExpAnd
-    | exp relop exp                     # ExpRel
-    | exp addop exp                     # ExpAdd
+    : negop exp                         # ExpNeg
     | exp mulop exp                     # ExpMul
-    | '!' exp                           # ExpNot
-    | '-' exp                           # ExpNeg
-    | STR                               # ExpStr
-    | IDENT '(' exp? (',' exp)* ')'     # ExpApp
-    | 'false'                           # ExpFalse
+    | exp addop exp                     # ExpAdd
+    | exp relop exp                     # ExpRel
+    | <assoc=right> exp '&&' exp        # ExpAnd
+    | <assoc=right> exp '||' exp        # ExpOr
+    | IDENT                             # ExpVar
+    | INTEGER                           # ExpInt
     | 'true'                            # ExpTrue
+    | 'false'                           # ExpFalse
+    | IDENT '(' exp? (',' exp)* ')'     # ExpApp
     | 'new' lattype '[' exp ']'         # ExpNewArr
     | IDENT '[' exp ']'                 # ExpArrElem
     | 'new' IDENT                       # ExpNewClass
     | exp '.' exp                       # ExpClassMember
     | '(' lattype ')' NULL              # ExpNull
-    | INTEGER                           # ExpInt
-    | IDENT                             # ExpVar
+    | STR                               # ExpStr
     | '(' exp ')'                       # ExpParen
+    ;
+
+negop
+    : '-'   # OpNeg
+    | '!'   # OpNot
+    ;
+
+mulop
+    : '*'   # OpMul
+    | '/'   # OpDiv
+    | '%'   # OpMod
+    ;
+
+addop
+    : '+'   # OpAdd
+    | '-'   # OpSub
     ;
 
 relop
@@ -83,16 +98,6 @@ relop
     | '!='  # OpNE
     ;
 
-addop
-    : '+'   # OpAdd
-    | '-'   # OpSub
-    ;
-
-mulop
-    : '*'   # OpMul
-    | '/'   # OpDiv
-    | '%'   # OpMod
-    ;
 
 IDENT:      [a-zA-Z][a-zA-Z0-9_']*;
 INTEGER:    [0-9]+;
