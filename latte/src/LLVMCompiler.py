@@ -1,7 +1,7 @@
 # pylint: disable=C0103, C0111, R1705
 
 import sys
-from typing import List, Union
+from typing import Dict, List, Set, Tuple, Union
 
 import antlr4
 from antlr_generated.LatteParser import LatteParser
@@ -67,23 +67,39 @@ def type_as_llvm(lattype: LatteParser.LattypeContext) -> str:
         compilation_error(lattype, EXT_NOT_IMPLEMENTED)
 
 
-class LatSignature:
+# Used for variables or values returned from expressions.
+class LatValue:
 
     def __init__(
-            self, ret_type: str, arg_types: List[str] = None,
-            code: List[str] = None, name: str = '', ret_val: str = '',
-            finish_label: str = None):
-        self.ret_type = ret_type
-        self.arg_types = arg_types or []
-        self.code = code or []
-        self.name = name
-        self.ret_val = ret_val
-        # ret_val is for expressions, might be a register or a constant
+            self, str_type: str, value: str = '',
+            name: str = '', finish_label: str = ''):
+        self.str_type = str_type  # 'int', 'boolean', etc.; not 'i32'
+        self.value = value  # might be a constant or a register
+        self.name = name  # variable name if it's a variable
+        # some expressions produce labels when evaluating, this is the label
+        # of the block in which the final result is assigned to a register
         self.finish_label = finish_label
+
+    def llvm_type(self):
+        return type_str_as_llvm(self.str_type)  # 'i32', 'i1', etc.
+
+
+class LatFunSignature:
+
+    def __init__(
+            self, ret_type: str, arg_types: List[str],
+            name: str = '', code: str = ''):
+        self.ret_type = ret_type
+        self.arg_types = arg_types
+        self.name = name
+        self.code = code
 
     def __str__(self):
         args = ', '.join(self.arg_types)
         return f'{self.ret_type} {self.name}({args})'
+
+    def llvm_ret_type(self):
+        return type_str_as_llvm(self.ret_type)
 
 
 class LLVMCompiler:
@@ -91,24 +107,23 @@ class LLVMCompiler:
     ### Constructor
 
     def __init__(self):
-        self.used_functions = set()
-        self.current_function_code = []
+        self.used_functions: Set[str] = set()
+        self.current_function_code: List[str] = []
         self.next_reg_index = 0
         self.next_label_index = 0
         self.tree_depth = -1
-        self.str_consts = {}
-        self.builtin_functions = set()
-        self.expected_ret_type = None
-        self.next_local = 0
-        self.var_envs = []
+        self.str_consts: Dict[str, str] = {}
+        self.builtin_functions: Set[str] = set()
+        self.expected_ret_type: Union[str, None] = None
+        self.var_envs: List[Dict[str, LatValue]] = []
         self.functions = {
-            'printInt': LatSignature('void', ['int']),
-            'printString': LatSignature('void', ['string']),
-            'error': LatSignature('void', []),
-            'readInt': LatSignature('int', []),
-            'readString': LatSignature('string', []),
-            'strcmp': LatSignature('int', ['string', 'string']),
-            'strconcat': LatSignature('string', ['string', 'string']),
+            'printInt': LatFunSignature('void', ['int']),
+            'printString': LatFunSignature('void', ['string']),
+            'error': LatFunSignature('void', []),
+            'readInt': LatFunSignature('int', []),
+            'readString': LatFunSignature('string', []),
+            'strcmp': LatFunSignature('int', ['string', 'string']),
+            'strconcat': LatFunSignature('string', ['string', 'string']),
         }
         for fun in self.functions:
             self.functions[fun].name = fun
@@ -117,7 +132,13 @@ class LLVMCompiler:
 
     ### Utils
 
-    def get_str_const(self, str_val: str) -> LatSignature:
+    def get_new_register(self) -> str:
+        reg = self.next_reg_index
+        self.next_reg_index += 1
+        return f'%.t{reg}'
+
+
+    def get_str_const(self, str_val: str) -> LatValue:
         exists = False
         for name, val in self.str_consts.items():
             if val == str_val:
@@ -131,42 +152,37 @@ class LLVMCompiler:
         self.current_function_code.append(
             f'{reg} = getelementptr [{str_len} x i8], '
             f'[{str_len} x i8]* {name}, i32 0, i32 0')
-        return LatSignature('string', ret_val=reg)
-
-
-    def get_new_register(self) -> str:
-        reg = self.next_reg_index
-        self.next_reg_index += 1
-        return f'%.t{reg}'
+        return LatValue('string', reg)
 
 
     def declare_variable(
-            self, ctx: antlr4.ParserRuleContext, var: LatSignature) -> None:
+            self, ctx: antlr4.ParserRuleContext, var: LatValue) -> None:
         if var.name in self.var_envs[-1]:
             compilation_error(ctx, f'Variable {var.name} already declared')
-        var.ret_val = self.get_new_register()
-        llvm_type = type_str_as_llvm(var.ret_type)
-        self.current_function_code.append(
-            f'{var.ret_val} = alloca {llvm_type}')
+        var.value = self.get_new_register()
+        llvm_type = var.llvm_type()
+        self.current_function_code.append(f'{var.value} = alloca {llvm_type}')
         self.var_envs[-1][var.name] = var
 
 
     def get_variable(self, ctx: antlr4.ParserRuleContext, var_name: str) \
-            -> LatSignature:
+            -> LatValue:
         for var_env in reversed(self.var_envs):
             if var_name in var_env:
                 return var_env[var_name]
         compilation_error(ctx, f'Variable {var_name} was not declared')
 
 
+    # Returns (variable, loaded value of variable)
     def load_variable(
-            self, ctx: antlr4.ParserRuleContext, var_name: str) -> str:
+            self, ctx: antlr4.ParserRuleContext, var_name: str) \
+            -> Tuple[LatValue, LatValue]:
         var = self.get_variable(ctx, var_name)
         reg = self.get_new_register()
-        llvm_type = type_str_as_llvm(var.ret_type)
+        llvm_type = var.llvm_type()
         self.current_function_code.append(
-            f'{reg} = load {llvm_type}, {llvm_type}* {var.ret_val}')
-        return (var, reg)
+            f'{reg} = load {llvm_type}, {llvm_type}* {var.value}')
+        return (var, LatValue(var.str_type, reg))
 
 
     def get_new_label(self) -> str:
@@ -186,8 +202,8 @@ class LLVMCompiler:
         arg_types = [type_as_str(arg.lattype()) for arg in ctx.arg()]
         if fun_name == 'main' and arg_types:
             compilation_error(ctx, 'Function main can not take arguments')
-        self.functions[fun_name] = LatSignature(
-            ret_type, arg_types=arg_types, name=fun_name)
+        self.functions[fun_name] = LatFunSignature(
+            ret_type, arg_types, name=fun_name)
 
 
     ### Program visitor
@@ -217,7 +233,7 @@ class LLVMCompiler:
             if fun_name not in self.used_functions:
                 continue
             fun = self.functions[fun_name]
-            llvm_ret_type = type_str_as_llvm(fun.ret_type)
+            llvm_ret_type = fun.llvm_ret_type()
             args = ', '.join(type_str_as_llvm(arg) for arg in fun.arg_types)
             code += f'declare {llvm_ret_type} @{fun_name}({args})\n'
         code += '\n'
@@ -231,7 +247,7 @@ class LLVMCompiler:
             if name in self.builtin_functions:
                 continue
             code += fun.code + '\n\n'
-        return code.strip()
+        return code.strip() + '\n'
 
 
     ### Function definition visitor
@@ -240,23 +256,25 @@ class LLVMCompiler:
         llvm_ret_type = type_as_llvm(ctx.lattype())
         fun_name = ctx.IDENT().getText()
         llvm_args = []
-        self.var_envs.append(dict())
+        self.var_envs.append({})
         self.next_reg_index = 0
         self.next_label_index = 0
         self.current_function_code = []
         self.expected_ret_type = type_as_str(ctx.lattype())
+
         for arg in ctx.arg():
             arg_name = arg.IDENT().getText()
             arg_type = type_as_str(arg.lattype())
             arg_llvm_type = type_as_llvm(arg.lattype())
             llvm_args.append(f'{arg_llvm_type} %{arg_name}')
-            var = LatSignature(arg_type, name=arg_name)
+            var = LatValue(arg_type, name=arg_name)
             self.declare_variable(ctx, var)
             self.current_function_code.append(
                 f'store {arg_llvm_type} %{arg_name}, '
-                f'{arg_llvm_type}* {var.ret_val}')
+                f'{arg_llvm_type}* {var.value}')
         llvm_args_str = ', '.join(llvm_args)
         fun_def = f'define {llvm_ret_type} @{fun_name}({llvm_args_str})'
+
         returned = self.visit_block(ctx.block(), make_env=False)
         if not returned:
             if self.expected_ret_type == 'void':
@@ -265,6 +283,7 @@ class LLVMCompiler:
                 compilation_error(
                     ctx, 'Function can finish before returning a value')
         self.var_envs.pop()
+
         code = self.current_function_code
         fun_block_code = 'entry:\n'
         for line in code:
@@ -279,7 +298,7 @@ class LLVMCompiler:
     ### Block/statements visitors
 
     # Visiting blocks and statements returns the type returned in a return
-    # statement inside it or None if nothing is returned.
+    # statement inside it or None if nothing is guaranteed to be returned.
     def visit_block(
             self, ctx: LatteParser.BlockContext,
             make_env: bool = True) -> Union[str, None]:
@@ -298,46 +317,55 @@ class LLVMCompiler:
     def visit_stmt(self, ctx: LatteParser.StmtContext) -> Union[str, None]:
         if isinstance(ctx, LatteParser.StmtEmptyContext):
             return None
+
         elif isinstance(ctx, LatteParser.StmtBlockContext):
             return self.visit_block(ctx.block())
+
         elif isinstance(ctx, LatteParser.StmtDeclContext):
             self.visit_stmt_decl(ctx)
+            return None
+
         elif isinstance(ctx, LatteParser.StmtAssContext):
             var = self.get_variable(ctx, ctx.IDENT().getText())
             val = self.visit_exp(ctx.exp())
-            if var.ret_type != val.ret_type:
+            if var.str_type != val.str_type:
                 compilation_error(
-                    ctx, f'Variable {var.name} has type {var.ret_type}, '
-                    f'but the value has type {val.ret_type}')
-            llvm_type = type_str_as_llvm(var.ret_type)
+                    ctx, f'Variable {var.name} has type {var.str_type}, '
+                    f'but the value has type {val.str_type}')
+            llvm_type = var.llvm_type()
             self.current_function_code.append(
-                f'store {llvm_type} {val.ret_val}, {llvm_type}* {var.ret_val}')
+                f'store {llvm_type} {val.value}, {llvm_type}* {var.value}')
+            return None
+
         elif isinstance(ctx, (
                 LatteParser.StmtIncrContext, LatteParser.StmtDecrContext)):
             if isinstance(ctx, LatteParser.StmtIncrContext):
                 op, llvm_op = '++', 'add'
             else:
                 op, llvm_op = '--', 'sub'
-            var, var_reg = self.load_variable(ctx, ctx.IDENT().getText())
-            if var.ret_type != 'int':
+            var, var_val = self.load_variable(ctx, ctx.IDENT().getText())
+            if var_val.str_type != 'int':
                 compilation_error(
                     ctx, f'Argument to `{op}` has to be int, '
-                    f'but {var.name} is {var.ret_type}')
+                    f'but {var.name} is {var_val.str_type}')
             reg = self.get_new_register()
             self.current_function_code += [
-                f'{reg} = {llvm_op} i32 {var_reg}, 1',
-                f'store i32 {reg}, i32* {var.ret_val}'
+                f'{reg} = {llvm_op} i32 {var_val.value}, 1',
+                f'store i32 {reg}, i32* {var.value}'
             ]
+            return None
+
         elif isinstance(ctx, LatteParser.StmtRetValContext):
             val = self.visit_exp(ctx.exp())
-            if val.ret_type != self.expected_ret_type:
+            if val.str_type != self.expected_ret_type:
                 compilation_error(
                     ctx, f'This function returns {self.expected_ret_type}, '
-                    f'but value is {val.ret_type}')
-            llvm_type = type_str_as_llvm(val.ret_type)
+                    f'but value is {val.str_type}')
+            llvm_type = val.llvm_type()
             self.current_function_code.append(
-                f'ret {llvm_type} {val.ret_val}')
-            return val.ret_type
+                f'ret {llvm_type} {val.value}')
+            return val.str_type
+
         elif isinstance(ctx, LatteParser.StmtRetVoidContext):
             if self.expected_ret_type != 'void':
                 compilation_error(
@@ -345,16 +373,22 @@ class LLVMCompiler:
                     f'{self.expected_ret_type}')
             self.current_function_code.append('ret void')
             return 'void'
+
         elif isinstance(ctx, (
                 LatteParser.StmtIfNoElseContext,
                 LatteParser.StmtIfElseContext)):
             return self.visit_stmt_if(ctx)
+
         elif isinstance(ctx, LatteParser.StmtWhileContext):
             return self.visit_stmt_while(ctx)
-        elif isinstance(ctx, LatteParser.StmtForContext):
-            compilation_error(ctx, EXT_NOT_IMPLEMENTED)
+
         elif isinstance(ctx, LatteParser.StmtExpContext):
             self.visit_exp(ctx.exp())
+            return None
+
+        elif isinstance(ctx, LatteParser.StmtForContext):
+            compilation_error(ctx, EXT_NOT_IMPLEMENTED)
+
 
 
     def visit_stmt_decl(self, ctx: LatteParser.StmtDeclContext) \
@@ -367,38 +401,39 @@ class LLVMCompiler:
             if isinstance(item, LatteParser.ItemInitContext):
                 val = self.visit_exp(item.exp())
             elif str_type in ('int', 'boolean'):
-                val = LatSignature(str_type, ret_val='0')
+                val = LatValue(str_type, '0')
             elif str_type == 'string':
                 val = self.get_str_const('')
 
-            var = LatSignature(str_type, name=item.IDENT().getText())
+            var = LatValue(str_type, name=item.IDENT().getText())
             self.declare_variable(ctx, var)
 
-            if val.ret_type != var.ret_type:
+            if val.str_type != var.str_type:
                 compilation_error(
-                    ctx, f'Variable {var.name} has type {var.ret_type}, '
-                    f'but the value has type {val.ret_type}')
+                    ctx, f'Variable {var.name} has type {var.str_type}, '
+                    f'but the value has type {val.str_type}')
             self.current_function_code.append(
-                f'store {llvm_type} {val.ret_val}, {llvm_type}* {var.ret_val}')
+                f'store {llvm_type} {val.value}, {llvm_type}* {var.value}')
 
 
     def visit_stmt_if(self, ctx: LatteParser.StmtContext) -> Union[str, None]:
         has_else = isinstance(ctx, LatteParser.StmtIfElseContext)
         cond = self.visit_exp(ctx.exp())
         true_stmt_ctx = ctx.stmt(0) if has_else else ctx.stmt()
-        if cond.ret_type != 'boolean':
-            compilation_error(ctx, 'Condition of if has to be boolean')
+        if cond.str_type != 'boolean':
+            compilation_error(
+                ctx, f'Condition of if has to be boolean, is {cond.str_type}')
 
-        if cond.ret_val == '1':
+        if cond.value == '1':
             return self.visit_stmt(true_stmt_ctx)
-        elif cond.ret_val == '0' and has_else:
+        elif cond.value == '0' and has_else:
             return self.visit_stmt(ctx.stmt(1))
 
         label_true = self.get_new_label()
         label_false = self.get_new_label()
         label_after = self.get_new_label() if has_else else label_false
         self.current_function_code += [
-            f'br i1 {cond.ret_val}, label %{label_true}, label %{label_false}',
+            f'br i1 {cond.value}, label %{label_true}, label %{label_false}',
             f'{label_true}:'
         ]
         returned_block_true = self.visit_stmt(true_stmt_ctx)
@@ -426,9 +461,15 @@ class LLVMCompiler:
             f'br label %{cond_label}',
             f'{cond_label}:'
         ]
+
         cond = self.visit_exp(ctx.exp())
+        if cond.str_type != 'boolean':
+            compilation_error(
+                ctx,
+                f'Condition of while has to be boolean, is {cond.str_type}')
+
         self.current_function_code += [
-            f'br i1 {cond.ret_val}, label %{label_true}, label %{label_false}',
+            f'br i1 {cond.value}, label %{label_true}, label %{label_false}',
             f'{label_true}:'
         ]
         self.visit_stmt(ctx.stmt())
@@ -440,24 +481,41 @@ class LLVMCompiler:
 
     ### Expression visitors
 
-    def visit_exp(self, ctx: LatteParser.ExpContext) -> LatSignature:
+    def visit_exp(self, ctx: LatteParser.ExpContext) -> LatValue:
         if isinstance(ctx, (
                 LatteParser.ExpOrContext, LatteParser.ExpAndContext)):
             return self.visit_bool_op_exp(ctx)
-        if isinstance(ctx, (
+
+        elif isinstance(ctx, (
                 LatteParser.ExpRelContext, LatteParser.ExpAddContext,
                 LatteParser.ExpMulContext)):
             return self.visit_binary_op_exp(ctx)
+
         elif isinstance(ctx, LatteParser.ExpNegContext):
             return self.visit_exp_neg(ctx)
+
         elif isinstance(ctx, LatteParser.ExpStrContext):
             return self.get_str_const(ctx.STR().getText()[1:-1])
+
         elif isinstance(ctx, LatteParser.ExpAppContext):
             return self.visit_exp_app(ctx)
+
         elif isinstance(ctx, LatteParser.ExpFalseContext):
-            return LatSignature('boolean', ret_val='0')
+            return LatValue('boolean', '0')
+
         elif isinstance(ctx, LatteParser.ExpTrueContext):
-            return LatSignature('boolean', ret_val='1')
+            return LatValue('boolean', '1')
+
+        elif isinstance(ctx, LatteParser.ExpIntContext):
+            return LatValue('int', ctx.INTEGER().getText())
+
+        elif isinstance(ctx, LatteParser.ExpVarContext):
+            _, var_val = self.load_variable(ctx, ctx.IDENT().getText())
+            return var_val
+
+        elif isinstance(ctx, LatteParser.ExpParenContext):
+            return self.visit_exp(ctx.exp())
+
         elif isinstance(ctx, LatteParser.ExpNewArrContext):
             compilation_error(ctx, EXT_NOT_IMPLEMENTED)
         elif isinstance(ctx, LatteParser.ExpArrElemContext):
@@ -468,36 +526,29 @@ class LLVMCompiler:
             compilation_error(ctx, EXT_NOT_IMPLEMENTED)
         elif isinstance(ctx, LatteParser.ExpNullContext):
             compilation_error(ctx, EXT_NOT_IMPLEMENTED)
-        elif isinstance(ctx, LatteParser.ExpIntContext):
-            return LatSignature('int', ret_val=ctx.INTEGER().getText())
-        elif isinstance(ctx, LatteParser.ExpVarContext):
-            var, var_reg = self.load_variable(ctx, ctx.IDENT().getText())
-            return LatSignature(var.ret_type, ret_val=var_reg)
-        elif isinstance(ctx, LatteParser.ExpParenContext):
-            return self.visit_exp(ctx.exp())
 
 
-    def visit_exp_neg(self, ctx: LatteParser.ExpNegContext) -> LatSignature:
+    def visit_exp_neg(self, ctx: LatteParser.ExpNegContext) -> LatValue:
         op = ctx.negop().getText()
         arg = self.visit_exp(ctx.exp())
         reg = self.get_new_register()
         expected_type = 'boolean' if op == '!' else 'int'
-        if arg.ret_type != expected_type:
+        if arg.str_type != expected_type:
             compilation_error(
                 ctx, f'Argument to `{op}` has to be {expected_type}, '
-                f'but is {arg.ret_type}'
+                f'but is {arg.str_type}'
             )
         if op == '!':
             self.current_function_code.append(
-                f'{reg} = xor i1 {arg.ret_val}, 1')
-            return LatSignature('boolean', ret_val=reg)
+                f'{reg} = xor i1 {arg.value}, 1')
+            return LatValue('boolean', reg)
         else:
             self.current_function_code.append(
-                f'{reg} = sub i32 0, {arg.ret_val}')
-            return LatSignature('int', ret_val=reg)
+                f'{reg} = sub i32 0, {arg.value}')
+            return LatValue('int', reg)
 
 
-    def visit_exp_app(self, ctx: LatteParser.ExpAppContext) -> LatSignature:
+    def visit_exp_app(self, ctx: LatteParser.ExpAppContext) -> LatValue:
         fun_name = ctx.IDENT().getText()
         fun_decl = self.functions.get(fun_name)
         if not fun_decl:
@@ -507,27 +558,27 @@ class LLVMCompiler:
             compilation_error(
                 ctx, f'Invalid number of arguments to `{fun_decl}`')
         for i, (arg, arg_decl) in enumerate(zip(args, fun_decl.arg_types)):
-            if arg.ret_type != arg_decl:
+            if arg.str_type != arg_decl:
                 compilation_error(
                     ctx, f'Argument {i+1} to function `{fun_decl}` has to '
-                    f'have type {arg_decl}, but value has type {arg.ret_type}')
+                    f'have type {arg_decl}, but value has type {arg.str_type}')
         self.used_functions.add(fun_name)
         llvm_ret_type = type_str_as_llvm(fun_decl.ret_type)
         str_args = ', '.join((
             '{arg_type} {arg_val}'.format(
-                arg_type=type_str_as_llvm(arg.ret_type), arg_val=arg.ret_val)
+                arg_type=arg.llvm_type(), arg_val=arg.value)
             for arg in args))
         call_str = f'call {llvm_ret_type} @{fun_decl.name}({str_args})'
         if fun_decl.ret_type != 'void':
             reg = self.get_new_register()
             call_str = f'{reg} = {call_str}'
         else:
-            reg = None
+            reg = 'void'
         self.current_function_code.append(call_str)
-        return LatSignature(fun_decl.ret_type, ret_val=reg)
+        return LatValue(fun_decl.ret_type, reg)
 
 
-    def visit_bool_op_exp(self, ctx: LatteParser.ExpContext) -> LatSignature:
+    def visit_bool_op_exp(self, ctx: LatteParser.ExpContext) -> LatValue:
         if isinstance(ctx, LatteParser.ExpAndContext):
             op, instr = '&&', 'and'
         else:
@@ -545,21 +596,21 @@ class LLVMCompiler:
         ]
 
         left = self.visit_exp(ctx.exp(0))
-        if left.ret_type != 'boolean':
+        if left.str_type != 'boolean':
             compilation_error(
                 ctx, f'Arguments to operator `{op}` have to be boolean,'
-                f'but the left value is {left.ret_type}')
+                f'but the left value is {left.str_type}')
         left_finish_label = left.finish_label or label_entry
         self.current_function_code += [
-            f'br i1 {left.ret_val}, label %{label_true}, label %{label_false}',
+            f'br i1 {left.value}, label %{label_true}, label %{label_false}',
             f'{label_check}:'
         ]
 
         right = self.visit_exp(ctx.exp(1))
-        if right.ret_type != 'boolean':
+        if right.str_type != 'boolean':
             compilation_error(
                 ctx, f'Arguments to operator `{op}` have to be boolean,'
-                f'but the right value is {right.ret_type}')
+                f'but the right value is {right.str_type}')
         right_finish_label = right.finish_label or label_check
 
         reg = self.get_new_register()
@@ -568,13 +619,13 @@ class LLVMCompiler:
 
             f'{label_skip}:',
 
-            f'{reg} = phi i1 [ {left.ret_val}, %{left_finish_label} ], '
-            f'[ {right.ret_val}, %{right_finish_label} ]'
+            f'{reg} = phi i1 [ {left.value}, %{left_finish_label} ], '
+            f'[ {right.value}, %{right_finish_label} ]'
         ]
-        return LatSignature('boolean', ret_val=reg, finish_label=label_skip)
+        return LatValue('boolean', reg, finish_label=label_skip)
 
 
-    def visit_binary_op_exp(self, ctx: LatteParser.ExpContext) -> LatSignature:
+    def visit_binary_op_exp(self, ctx: LatteParser.ExpContext) -> LatValue:
         if isinstance(ctx, LatteParser.ExpRelContext):
             op = ctx.relop().getText()
             op_ret_type = 'boolean'
@@ -600,35 +651,37 @@ class LLVMCompiler:
 
         left = self.visit_exp(ctx.exp(0))
         right = self.visit_exp(ctx.exp(1))
-        if left.ret_type != right.ret_type:
-            return compilation_error(
+        if left.str_type != right.str_type:
+            compilation_error(
                 ctx, f'Types to operator `{op}` do not match: '
-                f'{left.ret_type} and {right.ret_type}')
-        # true: left.ret_type == right.ret_type
-        if left.ret_type not in valid_types:
-            return compilation_error(
-                ctx, f'Operator `{op}` does not accept type {left.ret_type}')
+                f'{left.str_type} and {right.str_type}')
+        # true: left.str_type == right.str_type
+        if left.str_type not in valid_types:
+            compilation_error(
+                ctx, f'Operator `{op}` does not accept type {left.str_type}')
 
         reg = self.get_new_register()
-        if left.ret_type != 'string':
-            llvm_arg_type = type_str_as_llvm(left.ret_type)
+        if left.str_type != 'string':
+            llvm_arg_type = type_str_as_llvm(left.str_type)
             self.current_function_code.append(
                 f'{reg} = {instr} {llvm_arg_type} '
-                f'{left.ret_val}, {right.ret_val}')
-            return LatSignature(op_ret_type, ret_val=reg)
+                f'{left.value}, {right.value}')
+            return LatValue(op_ret_type, reg)
+
         elif isinstance(ctx, LatteParser.ExpRelContext):  # string comparison
             reg2 = self.get_new_register()
             self.used_functions.add('strcmp')
             self.current_function_code += [
                 f'{reg} = call i32 @strcmp('
-                f'i8* {left.ret_val}, i8* {right.ret_val})',
+                f'i8* {left.value}, i8* {right.value})',
 
                 f'{reg2} = {instr} i32 {reg}, 0'
             ]
-            return LatSignature('boolean', ret_val=reg2)
+            return LatValue('boolean', reg2)
+
         else:  # string concatenation
             self.used_functions.add('strconcat')
             self.current_function_code.append(
                 f'{reg} = call i8* @strconcat('
-                f'i8* {left.ret_val}, i8* {right.ret_val})')
-            return LatSignature('string', ret_val=reg)
+                f'i8* {left.value}, i8* {right.value})')
+            return LatValue('string', reg)
