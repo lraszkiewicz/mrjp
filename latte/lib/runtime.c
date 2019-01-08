@@ -18,7 +18,7 @@ void error() {
 
 int readInt() {
     int x;
-    if (scanf("%d ", &x) == 1) {
+    if (scanf("%d\n", &x) == 1) {
         return x;
     } else {
         puts("Runtime error: read value is not an integer.");

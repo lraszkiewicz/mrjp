@@ -24,7 +24,7 @@ def main(argv):
         raise AttributeError('invalid number of arguments to compiler')
     input_file, project_dir = argv[1:]
     if not input_file.endswith('.lat'):
-        raise AttributeError('input_file must have `lat` extension')
+        raise AttributeError('input_file must have `.lat` extension')
 
     out_path = os.path.dirname(input_file)
     base_name = os.path.split(input_file)[1][:-4]
@@ -41,9 +41,7 @@ def main(argv):
 
     compiler = LLVMCompiler()
     code = compiler.visit_prog(prog_tree)
-
     print('OK')
-    # print(code)
 
     ll_file_path = out_base_name + '.ll'
     runtime_path = os.path.join(project_dir, 'lib', 'runtime.bc')

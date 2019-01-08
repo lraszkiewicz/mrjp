@@ -7,8 +7,6 @@ import antlr4
 from antlr_generated.LatteParser import LatteParser
 
 
-# TODO: shadowing function arguments?
-
 EXT_NOT_IMPLEMENTED = 'Latte extension, not implemented'
 
 
