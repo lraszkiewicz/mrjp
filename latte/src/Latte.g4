@@ -6,8 +6,8 @@ program
 
 topdef
     : lattype IDENT '(' arg? (',' arg)* ')' block           # TopDefFun
-    | 'class' IDENT '{' classmember* '}'                    # TopDefClassBase
-    | 'class' IDENT 'extends' IDENT '{' classmember* '}'    # TopDefClassDerived
+    // | 'class' IDENT '{' classmember* '}'                    # TopDefClassBase
+    // | 'class' IDENT 'extends' IDENT '{' classmember* '}'    # TopDefClassDerived
     ;
 
 arg
@@ -16,10 +16,10 @@ arg
 block
     : '{' stmt* '}';
 
-classmember
-    : lattype IDENT (',' IDENT)* ';'                # ClassMemberField
-    | lattype IDENT '(' arg? (',' arg)* ')' block   # ClassMemberMethod
-    ;
+// classmember
+//     : lattype IDENT (',' IDENT)* ';'                # ClassMemberField
+//     | lattype IDENT '(' arg? (',' arg)* ')' block   # ClassMemberMethod
+//     ;
 
 stmt
     : ';'                                       # StmtEmpty
@@ -33,8 +33,8 @@ stmt
     | 'if' '(' exp ')' stmt                     # StmtIfNoElse
     | 'if' '(' exp ')' stmt 'else' stmt         # StmtIfElse
     | 'while' '(' exp ')' stmt                  # StmtWhile
-    | 'for' '(' lattype IDENT ':' exp ')' stmt  # StmtFor
     | exp ';'                                   # StmtExp
+    // | 'for' '(' lattype IDENT ':' exp ')' stmt  # StmtFor
     ;
 
 item
@@ -47,8 +47,8 @@ lattype
     | 'string'      # TypeStr
     | 'boolean'     # TypeBool
     | 'void'        # TypeVoid
-    | IDENT         # TypeClass
-    | lattype '[]'  # TypeArray
+    // | IDENT         # TypeClass
+    // | lattype '[]'  # TypeArray
     // | type '(' type? (',' type)* ')'    # TypeFun
     ;
 
@@ -64,13 +64,13 @@ exp
     | 'true'                            # ExpTrue
     | 'false'                           # ExpFalse
     | IDENT '(' exp? (',' exp)* ')'     # ExpApp
-    | 'new' lattype '[' exp ']'         # ExpNewArr
-    | IDENT '[' exp ']'                 # ExpArrElem
-    | 'new' IDENT                       # ExpNewClass
-    | exp '.' exp                       # ExpClassMember
-    | '(' lattype ')' NULL              # ExpNull
     | STR                               # ExpStr
     | '(' exp ')'                       # ExpParen
+    // | 'new' lattype '[' exp ']'         # ExpNewArr
+    // | IDENT '[' exp ']'                 # ExpArrElem
+    // | 'new' IDENT                       # ExpNewClass
+    // | exp '.' exp                       # ExpClassMember
+    // | '(' lattype ')' NULL              # ExpNull
     ;
 
 negop

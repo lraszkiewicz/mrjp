@@ -1,0 +1,56 @@
+# Wymagania
+
+* Python 3.7 lub 3.6, możliwy do wykrycia w Bashu za pomocą
+  `which python3.7` lub `which python3.6`, z modułem `venv`.
+  Testowane za pomocą Pythona 3.7.0 (jest na students) oraz 3.7.2,
+  nie gwarantuję działania na innych wersjach,
+  ale raczej zadziała na dowolnej wersji >= 3.6.0.
+* `java`, potrzebna do wygenerowania parsera gramatyki za pomocą ANTLR4.
+* `clang`, `llvm-as`, `llvm-link`
+
+
+# Makefile
+
+Uwaga: `make` pobierze < 3 MB danych:
+* `.jar` generatora parsera gramatyki ANTLR4 (2.14 MB)
+* Pythonową bibliotekę tego parsera (112 kB)
+
+Następnie `make`:
+* wygeneruje parser gramatyki za pomocą ANTLR4;
+* utworzy środowisko wirtualne Pythona,
+  za pomocą którego będzie uruchamiany kompilator;
+* skompiluje bibliotekę standardową Latte.
+
+Nie powinno być wymagane wykonanie żadnych specjalnych czynności,
+żeby wszystko się poprawnie zbudowało.
+
+
+# Używane bibliteki
+
+* ANTLR4 (http://www.antlr.org/) - używany zamiast BNFC do generowania
+  parsera języka Latte.
+
+
+# Zaimplementowane rozszerzenia
+
+Brak.
+
+
+# Struktura projektu
+
+W archiwum znajdują się:
+
+* `src/main.py`, `src/LLVMCompiler.py` - pliki źródłowe właściwego kompilatora
+* `src/Latte.g4` - gramatyka Latte w formacie ANTLR
+* `lib/runtime.c` - źródło biblioteki standardowej Latte
+* `latc`, `latc_llvm` - skrypty uruchamiające kompilator
+  (jest to kopia tego samego skryptu, treść zadania jest niejasna co do nazwy)
+* `Makefile`, `make_venv.sh`, `requirements.txt` - pliki niezbędne do
+  zbudowania i uruchomienia kompilatora
+* `README` - ten plik
+
+Po wykonaniu `Makefile` dodatkowo pojawią się:
+* `py3_venv/` - środowisko wirtualne Pythona
+* `lib/antlr-4.7.1-complete.jar` - biblioteka ANTLR generująca parser
+* `src/antlr_generated/*` - parser gramatyki wygenerowany przez ANTLR
+* `lib/runtime.ll`, `lib/runtime.bc` - skompilowana biblioteka standardowa

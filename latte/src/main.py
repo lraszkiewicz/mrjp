@@ -31,10 +31,14 @@ def main(argv):
     out_base_name = os.path.join(out_path, base_name)
 
     input_file_stream = antlr4.FileStream(input_file)
-    lexer = LatteLexer(input_file_stream)
-    token_stream = antlr4.CommonTokenStream(lexer)
-    parser = LatteParser(token_stream)
     syntax_error_listener = LatteParserErrorListener()
+
+    lexer = LatteLexer(input_file_stream)
+    lexer.removeErrorListeners()
+    lexer.addErrorListener(syntax_error_listener)
+    token_stream = antlr4.CommonTokenStream(lexer)
+
+    parser = LatteParser(token_stream)
     parser.removeErrorListeners()
     parser.addErrorListener(syntax_error_listener)
     prog_tree = parser.program()

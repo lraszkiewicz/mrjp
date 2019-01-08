@@ -27,6 +27,17 @@ lib/runtime.ll: lib/runtime.c
 	clang -O3 -S -emit-llvm -o lib/runtime.ll lib/runtime.c
 
 clean:
-	rm -rf src/antlr_generated/ src/__pycache__/ py3_venv/ lib/antlr-4.7.1-complete.jar lib/runtime.bc lib/runtime.ll
+	rm -rf src/antlr_generated/ src/__pycache__/ py3_venv/ lib/antlr-4.7.1-complete.jar lib/runtime.bc lib/runtime.ll latte_lr371594.tgz src/.antlr/
+	find lattests -name "*.ll" -type f -delete
+	find lattests -name "*.bc" -type f -delete
 
-.PHONY: download_warning grammar runtime clean
+tgz: clean
+	mkdir tgz; \
+	cp -r lib src latc latc_llvm make_venv.sh Makefile requirements.txt README tgz; \
+	cd tgz; \
+	tar cvzf latte_lr371594.tgz *; \
+	mv latte_lr371594.tgz ..; \
+	cd ..; \
+	rm -rf tgz
+
+.PHONY: download_warning grammar runtime clean tgz

@@ -1,3 +1,5 @@
 py3_venv/
 lib/runtime.bc
 lib/runtime.ll
+tgz/
+latte_lr371594.tgz

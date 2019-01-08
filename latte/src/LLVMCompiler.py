@@ -7,9 +7,6 @@ import antlr4
 from antlr_generated.LatteParser import LatteParser
 
 
-EXT_NOT_IMPLEMENTED = 'Latte extension, not implemented'
-
-
 def compilation_error(ctx: antlr4.ParserRuleContext, msg: str) -> None:
     line = ctx.start.line
     code = ctx.start.getInputStream().getText(
@@ -31,10 +28,6 @@ def type_as_str(lattype: LatteParser.LattypeContext) -> str:
         return 'boolean'
     elif isinstance(lattype, LatteParser.TypeVoidContext):
         return 'void'
-    elif isinstance(lattype, LatteParser.TypeClassContext):
-        compilation_error(lattype, EXT_NOT_IMPLEMENTED)
-    elif isinstance(lattype, LatteParser.TypeArrayContext):
-        compilation_error(lattype, EXT_NOT_IMPLEMENTED)
 
 
 def type_str_as_llvm(type_str: str) -> str:
@@ -61,10 +54,6 @@ def type_as_llvm(lattype: LatteParser.LattypeContext) -> str:
         return 'i1'
     elif isinstance(lattype, LatteParser.TypeVoidContext):
         return 'void'
-    elif isinstance(lattype, LatteParser.TypeClassContext):
-        compilation_error(lattype, EXT_NOT_IMPLEMENTED)
-    elif isinstance(lattype, LatteParser.TypeArrayContext):
-        compilation_error(lattype, EXT_NOT_IMPLEMENTED)
 
 
 # Used for variables or values returned from expressions.
@@ -212,18 +201,10 @@ class LLVMCompiler:
         for child in ctx.children:
             if isinstance(child, LatteParser.TopDefFunContext):
                 self.declare_function(child)
-            elif isinstance(child, LatteParser.TopDefClassBaseContext):
-                compilation_error(ctx, EXT_NOT_IMPLEMENTED)
-            elif isinstance(child, LatteParser.TopDefClassDerivedContext):
-                compilation_error(ctx, EXT_NOT_IMPLEMENTED)
 
         for child in ctx.children:
             if isinstance(child, LatteParser.TopDefFunContext):
                 self.visit_topdef_fun(child)
-            elif isinstance(child, LatteParser.TopDefClassBaseContext):
-                compilation_error(ctx, EXT_NOT_IMPLEMENTED)
-            elif isinstance(child, LatteParser.TopDefClassDerivedContext):
-                compilation_error(ctx, EXT_NOT_IMPLEMENTED)
 
         if 'main' not in self.functions:
             compilation_error(ctx, 'Function `int main()` was not declared')
@@ -386,10 +367,6 @@ class LLVMCompiler:
             self.visit_exp(ctx.exp())
             return None
 
-        elif isinstance(ctx, LatteParser.StmtForContext):
-            compilation_error(ctx, EXT_NOT_IMPLEMENTED)
-
-
 
     def visit_stmt_decl(self, ctx: LatteParser.StmtDeclContext) \
             -> Union[str, None]:
@@ -515,17 +492,6 @@ class LLVMCompiler:
 
         elif isinstance(ctx, LatteParser.ExpParenContext):
             return self.visit_exp(ctx.exp())
-
-        elif isinstance(ctx, LatteParser.ExpNewArrContext):
-            compilation_error(ctx, EXT_NOT_IMPLEMENTED)
-        elif isinstance(ctx, LatteParser.ExpArrElemContext):
-            compilation_error(ctx, EXT_NOT_IMPLEMENTED)
-        elif isinstance(ctx, LatteParser.ExpNewClassContext):
-            compilation_error(ctx, EXT_NOT_IMPLEMENTED)
-        elif isinstance(ctx, LatteParser.ExpClassMemberContext):
-            compilation_error(ctx, EXT_NOT_IMPLEMENTED)
-        elif isinstance(ctx, LatteParser.ExpNullContext):
-            compilation_error(ctx, EXT_NOT_IMPLEMENTED)
 
 
     def visit_exp_neg(self, ctx: LatteParser.ExpNegContext) -> LatValue:
