@@ -2,6 +2,7 @@ antlr_generated/
 antlr-4.7.1-complete.jar
 work/
 .idea/
+.antlr/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

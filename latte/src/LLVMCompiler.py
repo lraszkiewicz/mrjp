@@ -299,9 +299,9 @@ class LLVMCompiler:
 
     def visit_stmt(self, ctx: LatteParser.StmtContext) -> Union[str, None]:
         if isinstance(ctx, LatteParser.StmtEmptyContext):
-            return
+            return None
         elif isinstance(ctx, LatteParser.StmtBlockContext):
-            self.visit_block(ctx.block())
+            return self.visit_block(ctx.block())
         elif isinstance(ctx, LatteParser.StmtDeclContext):
             self.visit_stmt_decl(ctx)
         elif isinstance(ctx, LatteParser.StmtAssContext):
@@ -348,7 +348,8 @@ class LLVMCompiler:
             self.current_function_code.append('ret void')
             return 'void'
         elif isinstance(ctx, (
-                LatteParser.StmtIfNoElseContext, LatteParser.StmtIfElseContext)):
+                LatteParser.StmtIfNoElseContext,
+                LatteParser.StmtIfElseContext)):
             return self.visit_stmt_if(ctx)
         elif isinstance(ctx, LatteParser.StmtWhileContext):
             return self.visit_stmt_while(ctx)
@@ -386,8 +387,15 @@ class LLVMCompiler:
     def visit_stmt_if(self, ctx: LatteParser.StmtContext) -> Union[str, None]:
         has_else = isinstance(ctx, LatteParser.StmtIfElseContext)
         cond = self.visit_exp(ctx.exp())
+        true_stmt_ctx = ctx.stmt(0) if has_else else ctx.stmt()
         if cond.ret_type != 'boolean':
             compilation_error(ctx, 'Condition of if has to be boolean')
+
+        if cond.ret_val == '1':
+            return self.visit_stmt(true_stmt_ctx)
+        elif cond.ret_val == '0' and has_else:
+            return self.visit_stmt(ctx.stmt(1))
+
         label_true = self.get_new_label()
         label_false = self.get_new_label()
         label_after = self.get_new_label() if has_else else label_false
@@ -395,10 +403,10 @@ class LLVMCompiler:
             f'br i1 {cond.ret_val}, label %{label_true}, label %{label_false}',
             f'{label_true}:'
         ]
-        ctx_args = (0,) if has_else else ()
-        returned_block_true = self.visit_stmt(ctx.stmt(*ctx_args))
+        returned_block_true = self.visit_stmt(true_stmt_ctx)
         if not returned_block_true:
             self.current_function_code.append(f'br label %{label_after}')
+
         returned_block_false = None
         if has_else:
             self.current_function_code.append(f'{label_false}:')
@@ -499,7 +507,7 @@ class LLVMCompiler:
         args = [self.visit_exp(arg) for arg in ctx.exp()]
         if len(args) != len(fun_decl.arg_types):
             compilation_error(
-                ctx, f'Invalid number of arguments to {fun_decl}')
+                ctx, f'Invalid number of arguments to `{fun_decl}`')
         for i, (arg, arg_decl) in enumerate(zip(args, fun_decl.arg_types)):
             if arg.ret_type != arg_decl:
                 compilation_error(
@@ -522,7 +530,10 @@ class LLVMCompiler:
 
 
     def visit_bool_op_exp(self, ctx: LatteParser.ExpContext) -> LatSignature:
-        instr = 'and' if isinstance(ctx, LatteParser.ExpAndContext) else 'or'
+        if isinstance(ctx, LatteParser.ExpAndContext):
+            op, instr = '&&', 'and'
+        else:
+            op, instr = '||', 'or'
         label_entry = self.get_new_label()
         label_check = self.get_new_label()
         label_skip = self.get_new_label()
@@ -534,14 +545,25 @@ class LLVMCompiler:
             f'br label %{label_entry}',
             f'{label_entry}:'
         ]
+
         left = self.visit_exp(ctx.exp(0))
+        if left.ret_type != 'boolean':
+            compilation_error(
+                ctx, f'Arguments to operator `{op}` have to be boolean,'
+                f'but the left value is {left.ret_type}')
         left_finish_label = left.finish_label or label_entry
         self.current_function_code += [
             f'br i1 {left.ret_val}, label %{label_true}, label %{label_false}',
             f'{label_check}:'
         ]
+
         right = self.visit_exp(ctx.exp(1))
+        if right.ret_type != 'boolean':
+            compilation_error(
+                ctx, f'Arguments to operator `{op}` have to be boolean,'
+                f'but the right value is {right.ret_type}')
         right_finish_label = right.finish_label or label_check
+
         reg = self.get_new_register()
         self.current_function_code += [
             f'br label %{label_skip}',
