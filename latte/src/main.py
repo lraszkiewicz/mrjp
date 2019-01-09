@@ -13,7 +13,7 @@ from LLVMCompiler import LLVMCompiler
 
 class LatteParserErrorListener(antlr4.error.ErrorListener.ErrorListener):
     def syntaxError(self, recognizer, offendingSymbol, line, column, msg, e):
-        print('ERROR')
+        print('ERROR', file=sys.stderr)
         print(f'Syntax error in line {line}:{column}:')
         print(msg)
         sys.exit(1)
@@ -45,7 +45,7 @@ def main(argv):
 
     compiler = LLVMCompiler()
     code = compiler.visit_prog(prog_tree)
-    print('OK')
+    print('OK', file=sys.stderr)
 
     ll_file_path = out_base_name + '.ll'
     runtime_path = os.path.join(project_dir, 'lib', 'runtime.bc')

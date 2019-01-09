@@ -12,7 +12,7 @@ def compilation_error(ctx: antlr4.ParserRuleContext, msg: str) -> None:
     code = ctx.start.getInputStream().getText(
         ctx.start.start, ctx.stop.stop)
     code = code.split('\n')[0]
-    print('ERROR')
+    print('ERROR', file=sys.stderr)
     print(f'Compilation error in line {line}:')
     print(code)
     print(f'{msg}.')
