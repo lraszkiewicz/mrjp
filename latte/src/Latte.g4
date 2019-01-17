@@ -47,9 +47,8 @@ lattype
     | 'string'      # TypeStr
     | 'boolean'     # TypeBool
     | 'void'        # TypeVoid
-    // | IDENT         # TypeClass
-    // | lattype '[]'  # TypeArray
-    // | type '(' type? (',' type)* ')'    # TypeFun
+    | lattype '[]'  # TypeArray
+    | IDENT         # TypeClass
     ;
 
 exp
@@ -65,12 +64,11 @@ exp
     | 'false'                           # ExpFalse
     | IDENT '(' exp? (',' exp)* ')'     # ExpApp
     | STR                               # ExpStr
+    | exp '.' exp                       # ExpClassMember
+    | 'new' lattype ('[' exp ']')?      # ExpNew
+    | exp '[' exp ']'                   # ExpArrElem
+    | '(' lattype ')' nulllit           # ExpNull
     | '(' exp ')'                       # ExpParen
-    // | 'new' lattype '[' exp ']'         # ExpNewArr
-    // | IDENT '[' exp ']'                 # ExpArrElem
-    // | 'new' IDENT                       # ExpNewClass
-    // | exp '.' exp                       # ExpClassMember
-    // | '(' lattype ')' NULL              # ExpNull
     ;
 
 negop
@@ -98,11 +96,17 @@ relop
     | '!='  # OpNE
     ;
 
+nulllit
+    : 'null'
+    | 'NULL'
+    | 'nullptr'
+    ;
 
 IDENT:      [a-zA-Z][a-zA-Z0-9_']*;
 INTEGER:    [0-9]+;
 STR:        '"' (~[\r\n"] | '\\"')* '"';
-NULL:       ('NULL' | 'null' | 'nullptr');
+// NULL:       'nullptr|NULL|null';
+// NULL:       ('NULL' | 'null' | 'nullptr');
 
 LINE_COMMENT_HASH:      '#'  .*? '\r'? '\n' -> skip;
 LINE_COMMENT_SLASH:     '//' .*? '\r'? '\n' -> skip;

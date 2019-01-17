@@ -5,6 +5,16 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "antlr4-latte",
+            "type": "antlr-debug",
+            "request": "launch",
+            "input": "latte/lattests/mytest.lat",
+            "grammar": "latte/src/Latte.g4",
+            "startRule": "program",
+            "printParseTree": true,
+            "visualParseTree": true
+        },
+        {
             "name": "Python: latte/main.py (Integrated Terminal)",
             "type": "python",
             "request": "launch",
